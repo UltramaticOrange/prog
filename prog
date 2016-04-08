@@ -1,12 +1,22 @@
 #!/bin/bash
 
-# find our tty -- if we call this script from another script, the TTY gets lost and we can't get the terminal size.
-term=`ps gaxu | grep -v grep | grep $0 | awk '{print $7}' | tail -n 1`
+tty -s
+e=$?
 
-term_size=`stty -F "/dev/$term" size | grep -Eio "[0-9]+$"`
+if [ $e -eq 0 ]; then
+  # don't manually specify the tty file since it is already known.
+  term_size=`stty size | grep -Eio "[0-9]+$"`
+else
+  # find our tty -- if we call this script from another script, the TTY gets lost and we can't get the terminal size.
+  # this logic just makes a decent guess as to our tty and might be wrong if more than one `prog` is running at once.
+  term=`ps gaxu | grep -v grep | grep $0 | awk '{print $7}' | tail -n 1`
+  term_size=`stty -F "/dev/$term" size | grep -Eio "[0-9]+$"`
+fi
+
 let term_size=$term_size-3 # removing one more char than we need to because of echo behavior in cygwin.
                            # -1 for ending ']', -1 for indicator end '>', -1 for cygwin use cases.
                            # the opening '[' overwrites the first char of the progress bar.
+
 numer=$1
 if [ -z "$numer" ]; then
   exit -1
