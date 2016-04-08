@@ -1,17 +1,20 @@
 #!/bin/bash
 
+# find our tty -- if we call this script from another script, the TTY gets lost and we can't get the terminal size.
 term=`ps gaxu | grep -v grep | grep $0 | awk '{print $7}' | tail -n 1`
-term_size=`stty -F "/dev/$term" size | grep -Eio "[0-9]+$"`
-#term_size=`stty size | grep -Eio "[0-9]+$"`
-let term_size=$term_size-3 # removing one more char than we need to because of echo behavior in cygwin.
-numer=$1
 
+term_size=`stty -F "/dev/$term" size | grep -Eio "[0-9]+$"`
+let term_size=$term_size-3 # removing one more char than we need to because of echo behavior in cygwin.
+                           # -1 for ending ']', -1 for indicator end '>', -1 for cygwin use cases.
+                           # the opening '[' overwrites the first char of the progress bar.
+numer=$1
 if [ -z "$numer" ]; then
   exit -1
 elif [ "$numer" -lt 0 ]; then
   exit 1
 fi
 
+# assume we were handed a percentage if $2 wasn't passed to us.
 denom=100
 if [ "$2" ]; then
   denom=$2
@@ -21,6 +24,7 @@ fi
 let pct=($numer*100)/$denom
 let bar_size=($term_size*$pct)/100
 
+# build the bar
 bar_ct=0
 bar=''
 while [ $bar_ct -lt $bar_size ]
@@ -29,6 +33,7 @@ do
   let bar_ct=$bar_ct+1
 done
 
+# fill in the remaining width of the terminal
 bar="$bar>"
 while [ $bar_ct -lt $term_size ]
 do
@@ -36,4 +41,7 @@ do
   let bar_ct=$bar_ct+1
 done
 
+# show the bar. \r takes us to the start of the line, -e to print escaped chars
+# -n prevents a newline so we can print the bar on the same line each time.
+# this -n also means it's up to the user to decide when \n should get printed.
 echo -en "$bar]\r[$pct%\r"
